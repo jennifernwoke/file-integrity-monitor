@@ -1,0 +1,83 @@
+# File Intergrity Monitor #
+# by Jennifer Nwoke - 25th September #
+
+# imports library for cyptographic hashing # 
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+# SHA-256 #
+
+def calculate_hash(filename):
+    sha256 = hashlib.sha256() # creates SHA-256 hash project #
+    
+    with open (filename, "rb") as file: # opens file in binary read mode # 
+         while chunk := file.read (4096): # reads file in chunks of 4096 bytes #
+             sha256.update(chunk) # feeds each piece of the file into the hash #
+
+    return sha256.hexdigest()  # returns hash as readable hexadecimal text # 
+
+# Baseline Function #
+
+def create_baseline(folder): # find files, hashs the files and save the hashes #
+    baseline = {} # creates empty directory # 
+
+    for file in folder.iterdir(): # goes through everything in the file #
+        if file.is_file(): # make sure I'm dealing with a file not a directory #
+            baseline[str(file)] = calculate_hash(file) # this gets the file and calculates the hash #
+
+    with open("baseline.json", "w") as file: # opens the file and make it write mode #
+        json.dump(baseline, file, indent=4) # converts Python to JSON #
+
+print("Baseline is a success") # display in terminal #
+
+# Comparison Engine #
+
+def load_baseline(): # opens the baseline.json. read the stored hashes and returns them #
+    with open("baseline.json", "r") as file: # opens the file and make it read mode #
+        return json.load(file)
+
+def check_intergrity(folder,baseline):
+    current_files = {} # holds the file as they exist right now #
+    changes_detected = False
+
+    for file in folder.iterdir():
+        if file.is_file():
+            current_files[str(file)] = calculate_hash(file) # creates a snapshot of the file #
+
+    for file in current_files: # boolean equation - if elif statement#
+        if file not in baseline: # new file that isn't in the baseline #
+            print(f"[+] new file detected:{file}") # file added #
+            changes_detected = True
+
+        elif current_files [file] != baseline [file]: # compare the current hash against the baseline hash #
+            print(f"[!] new modified:{file}") # file modified #
+            changes_detected = True
+
+    for file in baseline:
+        if file not in current_files: # file was in baseline but isn't there any more #
+            print(f"[-] new deleted:{file}") # file deleted #
+            changes_detected = True
+
+    if not changes_detected:
+        print("no changes detected")
+            
+folder = Path("test_files") # directory we want to use #
+
+if len(sys.argv) < 2: # tells us how many items are inside sys.argv #
+    print("Usuage:")  # tells the program what to do #
+    print(" python3 file-intergrity-monitor.py baseline") # tells the program what to do #
+    print(" python3 file-intergrity-monitor.py check") # tells the program what to do #
+    sys.exit() # stops the program #
+
+command = sys.argv[1] # command the user entered and stores it in variable #
+
+if command == "baseline": # if users types baseline Python runs folder #
+    create_baseline(folder)
+elif command == "check": #if users types checks Python runs folder #
+    baseline = load_baseline()
+    check_intergrity(folder, baseline)
+else:
+    print("unknown.")
+
